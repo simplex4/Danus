@@ -32,6 +32,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from danus import improvement
 from danus.execution import layout as L
 from danus.execution.scaffold import atomic_write, do_new, spawn_loop
 
@@ -382,12 +383,33 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("stop", help="stop worker loop(s)")
     sp.add_argument("target", help="<project> or <project>/<worker>")
     sp.add_argument("--force", action="store_true", help="kill now (else finish current round)")
+    imp = sub.add_parser("improvement", help="initialize or inspect verified bound improvement")
+    modes = imp.add_subparsers(dest="improvement_cmd", required=True)
+    init = modes.add_parser("init", help="freeze PROBLEM.md, starting bounds and comparison rule")
+    init.add_argument("project")
+    init.add_argument("--baseline-file", required=True)
+    init.add_argument("--criterion", required=True)
+    show = modes.add_parser("status", help="export accepted history as JSON; does not launch agents")
+    show.add_argument("project")
     return p
 
 
 def main(argv: Optional[List[str]] = None) -> int:
     args = build_parser().parse_args(argv)
-    if args.cmd == "list":
+    if args.cmd == "improvement":
+        project_dir = L.project_dir(args.project)
+        if not project_dir.is_dir():
+            raise SystemExit(f"no such project: {args.project}")
+        try:
+            if args.improvement_cmd == "init":
+                result = improvement.initialize(project_dir,
+                    Path(args.baseline_file).read_text(encoding="utf-8"), args.criterion)
+            else:
+                result = improvement.status(project_dir)
+        except (ValueError, OSError) as exc:
+            raise SystemExit(str(exc)) from exc
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    elif args.cmd == "list":
         rows = do_list()
         print(json.dumps(rows, ensure_ascii=False, indent=2) if args.json else _fmt_list(rows))
     elif args.cmd == "new":

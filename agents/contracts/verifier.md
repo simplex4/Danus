@@ -248,3 +248,18 @@ Read the cited fact from the fact graph to perform this chain check, and flag an
 - These prohibitions add to the existing accept rule (zero `critical_errors` AND zero `gaps`), making it strictly more strict. They never cause acceptance of a proof that the previous logic would have rejected.
 - The HTTP server's pre-checks are deterministic regex matches. Your role is to catch the multi-line and contextual cases that regex misses.
 - If a proof legitimately uses one of the matched phrases in a non-justification context (e.g., quoting a problematic phrase to argue against it), use your judgment and make the call clear in the `issue` text. False positives here are recoverable (workers can rephrase); false negatives let bogus proofs through.
+
+## Improvement submissions
+
+When the prompt includes FROZEN IMPROVEMENT CONTEXT, retain the ordinary proof
+verification obligations and output fields. Also independently compare the
+candidate to the immutable starting baseline AND all accepted results, under the
+specified criterion. Check exact domains, hypotheses, quantifiers and bounds;
+rewording or a restricted claim without a stronger consequence is not a gain.
+Return `improvement_assessment` with `baseline_sha256`, `candidate_sha256`,
+`verdict` (`strict_improvement`, `not_improvement`, or `unresolved`), and a
+substantive `explanation`. Copy both hashes exactly from the frozen context.
+A correct proof does not imply a strict improvement. An unavailable or unproved
+comparison is unresolved. Use the supplied frozen predecessor facts when cited;
+no scout or main-agent authority is evidence. Do not infer optimality from an
+exhausted budget. This extra field is required only for improvement submissions.

@@ -25,6 +25,7 @@ from .prechecks import run_prechecks
 class VerifyRequest(BaseModel):
     statement: str = Field(..., min_length=1)
     proof: str = Field(..., min_length=1)
+    improvement_context: Dict[str, Any] | None = None
 
 
 app = FastAPI(title="Danus verify service", version="0.1.0")
@@ -47,4 +48,7 @@ def verify(request: VerifyRequest) -> Dict[str, Any]:
         status_code, detail = rejected
         raise HTTPException(status_code=status_code, detail=detail)
     run_id = _allocate_run_id(request.statement)
-    return run_codex_verification(run_id=run_id, statement=request.statement, proof=request.proof)
+    kwargs = {}
+    if request.improvement_context is not None:
+        kwargs["improvement_context"] = request.improvement_context
+    return run_codex_verification(run_id=run_id, statement=request.statement, proof=request.proof, **kwargs)

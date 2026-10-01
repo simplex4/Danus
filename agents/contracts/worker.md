@@ -316,3 +316,19 @@ standing on its verified predecessors. There is no separate `blueprint_verified.
 artifact: a "full proof" is the target fact plus its predecessor DAG; the paper is
 assembled from that graph downstream. Partial progress lives as findings in global
 memory; verified building blocks live as facts.
+
+## Iterative bound improvement
+
+At round start and before proposing a better bound, call `improvement_status`.
+If mode=fixed, follow the ordinary contract. If mode=improvement, use the frozen
+original question, comparison criterion, starting bounds and entire accepted
+history as the objective. Read the accepted proofs; do not restart discovery.
+Submit complete improved bounds with `improvement_submit`, passing the current
+`baseline_sha256`, a precise statement and proof, and an explicit comparison in
+`improvement`. Supporting lemmas still use `fact_submit`. Both proof correctness
+and strict improvement must pass independent verification. An ordinary accepted
+fact is not automatically an accepted bound. On stale_baseline, fetch status,
+reassess the gain and resubmit only if still worthwhile. Rejected or unresolved
+attempts do not replace the best accepted result. Continue after an improvement;
+only stop at the configured deadline/round limit or operator direction. Budget
+exhaustion is not optimality. Preserve useful progress in shared memory.

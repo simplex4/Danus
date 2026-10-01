@@ -157,3 +157,5 @@ to the swarm as `master_guidance`.
 - The finished paper is itself re-verified as written (a dedicated paper-math
   verifier reads the whole document) before delivery, on top of the per-fact
   verification.
+
+For opt-in bound benchmarking, see [iterative improvement](docs/iterative-improvement.md).

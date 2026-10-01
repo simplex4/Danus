@@ -24,14 +24,16 @@ ALL_TOOLS: Tuple[str, ...] = (
     "gm_add",
     "gm_search",
     "fact_submit",
+    "improvement_submit",
+    "improvement_status",
     "fact_search",
     "fact_revoke",
     "search_arxiv_theorems",
 )
 
 ROLE_TOOLS: Dict[str, Tuple[str, ...]] = {
-    "worker": ("gm_add", "gm_search", "fact_submit", "fact_search", "search_arxiv_theorems"),
-    "main": ("gm_add", "gm_search", "fact_search", "fact_revoke", "search_arxiv_theorems"),
+    "worker": ("improvement_submit", "improvement_status", "gm_add", "gm_search", "fact_submit", "fact_search", "search_arxiv_theorems"),
+    "main": ("improvement_status", "gm_add", "gm_search", "fact_search", "fact_revoke", "search_arxiv_theorems"),
     "verifier": ("search_arxiv_theorems",),
     "all": ALL_TOOLS,
 }

@@ -37,6 +37,7 @@ from typing import Any, Dict, List, Optional
 
 from danus._mcp import FastMCP
 from danus.core import FactGraph, GlobalMemory
+from danus import improvement as _improvement
 from danus.integrations import search as _arxiv_search
 
 from .roles import tools_for
@@ -91,7 +92,7 @@ def _fg(project: Optional[str] = None) -> FactGraph:
     return FactGraph(_project(project))
 
 
-def _verify(statement: str, proof: str) -> Dict[str, Any]:
+def _verify(statement: str, proof: str, improvement_context=None) -> Dict[str, Any]:
     """POST {statement, proof} to the verify service; return its JSON."""
     verify_url = os.environ.get("DANUS_VERIFY_URL", "")
     if not verify_url:
@@ -100,7 +101,10 @@ def _verify(statement: str, proof: str) -> Dict[str, Any]:
         timeout = int(os.environ.get("DANUS_VERIFY_TIMEOUT", "3600"))
     except ValueError:
         timeout = 3600
-    data = json.dumps({"statement": statement, "proof": proof}).encode("utf-8")
+    payload = {"statement": statement, "proof": proof}
+    if improvement_context is not None:
+        payload["improvement_context"] = improvement_context
+    data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         verify_url, data=data, headers={"Content-Type": "application/json"}
     )
@@ -246,6 +250,33 @@ def fact_submit(
     return {"accepted": True, "fact_id": fact_id, "undefined_symbols": undefined}
 
 
+def improvement_status(project: Optional[str] = None) -> Dict[str, Any]:
+    """Read the immutable objective and accepted bound history. Use its
+    baseline_sha256 in improvement_submit; all accepted proofs are included.
+    Fixed projects return mode=fixed. This is also the benchmark export."""
+    return _improvement.status(_project(project))
+
+
+def improvement_submit(
+    statement: str, proof: str, improvement: str, baseline_sha256: str,
+    predecessors: Optional[List[str]] = None,
+    glossary_introduces: Optional[Dict[str, str]] = None,
+    intuition: str = "", source_id: Optional[str] = None,
+    external_refs: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """Submit a proposed better bound, not an intermediate lemma. Requires an
+    initialized improvement project and the current improvement_status hash.
+    Independent proof AND strict-improvement checks must pass. Stale baselines
+    require a new comparison/submission. Ordinary fact_submit remains available
+    for supporting lemmas but never advances the accepted bound history."""
+    return _improvement.submit(
+        _project(), statement=statement, proof=proof, improvement=improvement,
+        baseline_sha256=baseline_sha256, author=_author(), verify=_verify,
+        predecessors=predecessors, glossary_introduces=glossary_introduces,
+        intuition=intuition, source_id=source_id, external_refs=external_refs,
+    )
+
+
 def fact_search(query: str, limit: int = 10, project: Optional[str] = None) -> Dict[str, Any]:
     """BM25 search over the verified fact graph (statement + proof + glossary),
     the derived fact index rebuilt on demand from the fact files — the fact graph
@@ -285,6 +316,8 @@ def search_arxiv_theorems(query: str, num_results: int = 10) -> Dict[str, Any]:
 # --------------------------------------------------------------------------- #
 
 _TOOLS = {
+    "improvement_status": improvement_status,
+    "improvement_submit": improvement_submit,
     "gm_add": gm_add,
     "gm_search": gm_search,
     "fact_submit": fact_submit,

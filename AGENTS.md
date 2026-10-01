@@ -219,3 +219,24 @@ bash scripts/services.sh up verify
 Primary controls: `danus list/new/assign/start/status/stop/finalize`; MCP tools
 `gm_add`, `gm_search`, `fact_search`, `fact_revoke`, and
 `search_arxiv_theorems`. Main-agent skills live in `.agents/skills/`.
+
+## Iterative bound improvement (opt-in)
+
+When the operator asks to improve bounds iteratively, scaffold the project using
+its requested roster, write the immutable original question to PROBLEM.md, and
+write the starting known bounds, domains, hypotheses and sources to a baseline
+text file. Enable with `danus improvement init <project> --baseline-file <path>
+--criterion "<precise comparison rule>"` before starting workers. See
+`docs/iterative-improvement.md`. Do not silently enable this for fixed problems.
+
+Read `improvement_status(project=...)` at startup, resume and each control beat.
+For mode=improvement, an accepted bound is a milestone, not project completion:
+continue until the operator's deadline/budget, pause/stop, or a separately
+verified terminal target. Never claim optimality from exhausted search. Preserve
+PROBLEM.md, the starting baseline and all accepted results. Direct workers to
+use `improvement_submit` for improved bounds; ordinary `fact_submit` only adds
+supporting facts and does not advance the benchmark. Stale submissions must be
+compared again to the latest baseline. On budget/deadline stop, checkpoint and
+stop workers through the existing controls. Report the best accepted history and
+remaining gaps, not the latest unverified proposal. Keep roster/model choices
+under existing operator controls; this mode does not change their defaults.

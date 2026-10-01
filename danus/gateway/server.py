@@ -92,7 +92,7 @@ def _fg(project: Optional[str] = None) -> FactGraph:
     return FactGraph(_project(project))
 
 
-def _verify(statement: str, proof: str, improvement_context=None) -> Dict[str, Any]:
+def _verify(statement: str, proof: str, improvement_context=None, candidate_context=None) -> Dict[str, Any]:
     """POST {statement, proof} to the verify service; return its JSON."""
     verify_url = os.environ.get("DANUS_VERIFY_URL", "")
     if not verify_url:
@@ -104,6 +104,8 @@ def _verify(statement: str, proof: str, improvement_context=None) -> Dict[str, A
     payload = {"statement": statement, "proof": proof}
     if improvement_context is not None:
         payload["improvement_context"] = improvement_context
+    if candidate_context is not None:
+        payload["candidate_context"] = candidate_context
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         verify_url, data=data, headers={"Content-Type": "application/json"}
@@ -177,9 +179,19 @@ def fact_submit(
     with ``search_arxiv_theorems``). This is captured on the fact so the paper
     pipeline can cite it without re-deriving; it is mutable metadata and does not
     affect the ``fact_id``."""
-    fg = _fg()
-    gm = _gm()
-    problem_id = os.environ.get("DANUS_PROBLEM_ID", Path(_project()).name)
+    return _fact_submit(statement, proof, predecessors=predecessors,
+                        glossary_introduces=glossary_introduces, intuition=intuition,
+                        source_id=source_id, external_refs=external_refs)
+
+
+def _fact_submit(statement, proof, *, predecessors=None, glossary_introduces=None,
+                 intuition="", source_id=None, external_refs=None, project=None,
+                 author=None, verify=None):
+    """Shared gate; the experimental relay changes transport, never acceptance."""
+    fg = _fg(project)
+    gm = _gm(project)
+    author = author or _author()
+    problem_id = os.environ.get("DANUS_PROBLEM_ID", Path(_project(project)).name)
 
     # glossary coverage is advisory — never let a heuristic bug block submission
     try:
@@ -193,7 +205,7 @@ def fact_submit(
     # 1) Verify. If the verify service errors, no verdict exists yet: return a
     #    clean error so the worker retries. Nothing is lost.
     try:
-        result = _verify(statement, proof)
+        result = (verify or _verify)(statement, proof)
     except Exception as e:
         return {"accepted": False, "verdict": "error", "error": str(e),
                 "undefined_symbols": undefined}
@@ -214,7 +226,7 @@ def fact_submit(
     if accepted:
         try:
             fact_id = fg.add(
-                problem_id=problem_id, author=_author(), statement=statement, proof=proof,
+                problem_id=problem_id, author=author, statement=statement, proof=proof,
                 predecessors=predecessors, glossary_introduces=glossary_introduces,
                 intuition=intuition, external_refs=external_refs,
             )
@@ -226,7 +238,7 @@ def fact_submit(
         "verification",
         claim=statement,
         evidence="verdict: correct" if accepted else (result.get("repair_hints") or "verdict: wrong"),
-        author=_author(),
+        author=author,
         verifiable=False,
         links={"source_id": source_id, "predecessors": predecessors or []},
         verdict=verdict,
@@ -248,6 +260,22 @@ def fact_submit(
         return {"accepted": True, "fact_id": None, "write_error": write_error,
                 "undefined_symbols": undefined}
     return {"accepted": True, "fact_id": fact_id, "undefined_symbols": undefined}
+
+
+def candidate_submit(project: str, package_file: str) -> Dict[str, Any]:
+    """EXPERIMENTAL: main relays an exact scout proof package to the verifier.
+    package_file is a project-relative JSON file with producer, statement, proof
+    and optional fact metadata. For a bound also include improvement and current
+    baseline_sha256. See docs/experimental-scout-submission.md. No worker
+    rederivation is required. A package is speculative until accepted; the main
+    cannot bypass the verifier or write the fact graph directly."""
+    if _role() not in ("main", "all"):
+        raise PermissionError("candidate_submit requires the main role")
+    from danus.candidates import submit_package
+    def publish(**kwargs):
+        return _fact_submit(project=project, **kwargs)
+    return submit_package(_project(project), package_file, submitter=_author(),
+                          verify=_verify, publish=publish)
 
 
 def improvement_status(project: Optional[str] = None) -> Dict[str, Any]:
@@ -316,6 +344,7 @@ def search_arxiv_theorems(query: str, num_results: int = 10) -> Dict[str, Any]:
 # --------------------------------------------------------------------------- #
 
 _TOOLS = {
+    "candidate_submit": candidate_submit,
     "improvement_status": improvement_status,
     "improvement_submit": improvement_submit,
     "gm_add": gm_add,

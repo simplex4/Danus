@@ -26,6 +26,7 @@ class VerifyRequest(BaseModel):
     statement: str = Field(..., min_length=1)
     proof: str = Field(..., min_length=1)
     improvement_context: Dict[str, Any] | None = None
+    candidate_context: Dict[str, Any] | None = None
 
 
 app = FastAPI(title="Danus verify service", version="0.1.0")
@@ -47,8 +48,12 @@ def verify(request: VerifyRequest) -> Dict[str, Any]:
     if rejected is not None:
         status_code, detail = rejected
         raise HTTPException(status_code=status_code, detail=detail)
+    if request.improvement_context is not None and request.candidate_context is not None:
+        raise HTTPException(status_code=400, detail="choose one submission context")
     run_id = _allocate_run_id(request.statement)
     kwargs = {}
     if request.improvement_context is not None:
         kwargs["improvement_context"] = request.improvement_context
+    if request.candidate_context is not None:
+        kwargs["candidate_context"] = request.candidate_context
     return run_codex_verification(run_id=run_id, statement=request.statement, proof=request.proof, **kwargs)

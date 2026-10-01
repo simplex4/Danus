@@ -125,3 +125,14 @@ Danus/
 | global-memory kinds | the 11 `GLOBAL_KINDS` (incl. `master_guidance`/`elaboration`/`verification`) | `danus.core` ↔ agents |
 | write-paper prompt assets | codex role prompts + style read from `agents/skills/write-paper/` (via `DANUS_WRITE_PAPER_SKILL_DIR`) | `danus.write_paper` assembler ↔ `agents/skills/write-paper/` |
 | env-var contract | `DANUS_* / CODEX_* / VERIFY_*` names; the codex CALL + env (bin/model/effort/PATH/`exec` prefix) is resolved through the shared `danus.codex` launcher: neutral `DANUS_CODEX_BIN` / `DANUS_MAIN_MODEL` / `DANUS_MAIN_EFFORT` (back-compat aliases `DANUS_CODEX_MODEL` / `DANUS_CODEX_EFFORT`) + `DANUS_WORKER_MODEL` for workers + per-service `DANUS_{VERIFY,WRITE_PAPER,HUMAN_SUMMARY}_{MODEL,EFFORT}` overrides | `danus.codex` + `config/` + `scripts/env.sh` ↔ every codex-exec site (`danus.execution.loop` · `danus.verify.launcher` · `danus.authoring.driver`) |
+
+## Experimental branch exception
+
+On `experimental-scout-submission`, the main role additionally exposes
+`candidate_submit`: an exact-file scout proof relay through the existing fresh
+verifier. The main still has no `fact_submit` and cannot bypass verification.
+Complete scout proofs no longer require worker rederivation. See
+[experimental workflow](docs/experimental-scout-submission.md) for provenance,
+role boundaries, and the separate strict-improvement acceptance path. This
+exception supersedes the worker-only submission descriptions above on this
+branch; it is excluded from the parent `iterative-improvement` branch.

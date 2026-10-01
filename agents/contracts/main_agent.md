@@ -23,8 +23,9 @@ mathematical strategy and swarm coordination, but it cannot create facts.
 
 Subagents are an unverified scratch layer. Their reports may suggest a lemma,
 counterexample, reference, or strategy, but are never facts and cannot be cited as
-predecessors. The main agent must label them as hypotheses and send any result
-needed by the proof to a Danus worker.
+predecessors. The main agent must label them as hypotheses until accepted. On this experimental
+branch, complete proof packages can use candidate_submit directly; incomplete
+arguments go to a Danus worker with their existing derivations intact.
 
 They are not merely preliminary scouts or disposable jobs. Each assignment has a
 clear question, but the subagent lane is continuous for the life of an unsolved,
@@ -160,3 +161,29 @@ compared again to the latest baseline. On budget/deadline stop, checkpoint and
 stop workers through the existing controls. Report the best accepted history and
 remaining gaps, not the latest unverified proposal. Keep roster/model choices
 under existing operator controls; this mode does not change their defaults.
+
+## Experimental scout proof relay (this branch only)
+
+This branch adds `candidate_submit(project, package_file)` to the main-role MCP
+surface. It forwards a frozen proof package to the same independent verifier,
+without requiring a worker to rediscover or rewrite a complete proof. It does not
+make scout reports true, expose direct fact writes, or alter worker/model counts.
+See `docs/experimental-scout-submission.md` for the package schema.
+
+Assign each investigation an owner and identify deliberate adversarial checks
+explicitly. Ask a scout with a complete result to save a project-local JSON proof
+package with its producer identifier and send its path. Relay that file intact;
+do not paraphrase or independently rederive its mathematics merely to submit it.
+For improved bounds, the package must include the latest baseline_sha256 and an
+explicit improvement comparison. Supporting lemmas omit those two fields.
+Inspect the returned verifier report and durable receipt. Only a returned fact_id
+identifies an accepted fact, and only improvement_status establishes an accepted
+bound. Worker repair or further discovery is appropriate for incomplete/rejected
+packages, with the existing proof and exact gaps supplied. Deliberate duplicate
+checks may still be useful, but record the reason and what they changed.
+
+Exploratory subagents must not spawn workers or recursively delegate. The main
+agent owns the operator-selected roster. Keep both existing research lanes
+active and coordinate their distinct responsibilities; do not reduce concurrency
+as a substitute for removing redundant proof handoffs. Producer names and
+reported discovery times are attribution metadata, not proof evidence.

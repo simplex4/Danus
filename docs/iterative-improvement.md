@@ -68,3 +68,7 @@ No extra debug logger, roster change or model change is required.
 
 Verification is by an independent LLM, not a formal proof assistant. These tests
 validate protocol and persistence; a live research benchmark is still required.
+
+On the experimental child branch, complete scout proofs may also use the
+[exact-package relay](experimental-scout-submission.md), with the same bound
+acceptance gate and history.

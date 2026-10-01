@@ -33,7 +33,8 @@ Codex subagents and Danus workers serve different purposes:
 2. **Danus workers are evidentiary.** They prove candidate statements and submit
    them through `fact_submit`. Only accepted submissions become reusable facts.
 
-Promising subagent ideas must be converted into precise worker assignments and
+On this experimental branch, complete subagent proofs may use the exact-package
+relay below. Incomplete ideas become precise worker assignments. Both paths must
 pass the verifier before downstream proofs may rely on them.
 
 ## Continuous parallel mathematical reasoning
@@ -183,7 +184,8 @@ with persisting on a route whose mechanism is no longer credible.
 
 ## Boundaries
 
-- The main role has no `fact_submit`. Do not hand-edit fact graph or global-memory
+- The main role has no `fact_submit`; `candidate_submit` is a verifier-gated
+  experimental relay, not a direct fact write. Do not hand-edit fact graph or global-memory
   files; use MCP tools and the `danus` CLI.
 - Global memory is shared awareness, not truth. Label conjectures and exploratory
   reports honestly.
@@ -240,3 +242,29 @@ compared again to the latest baseline. On budget/deadline stop, checkpoint and
 stop workers through the existing controls. Report the best accepted history and
 remaining gaps, not the latest unverified proposal. Keep roster/model choices
 under existing operator controls; this mode does not change their defaults.
+
+## Experimental scout proof relay (this branch only)
+
+This branch adds `candidate_submit(project, package_file)` to the main-role MCP
+surface. It forwards a frozen proof package to the same independent verifier,
+without requiring a worker to rediscover or rewrite a complete proof. It does not
+make scout reports true, expose direct fact writes, or alter worker/model counts.
+See `docs/experimental-scout-submission.md` for the package schema.
+
+Assign each investigation an owner and identify deliberate adversarial checks
+explicitly. Ask a scout with a complete result to save a project-local JSON proof
+package with its producer identifier and send its path. Relay that file intact;
+do not paraphrase or independently rederive its mathematics merely to submit it.
+For improved bounds, the package must include the latest baseline_sha256 and an
+explicit improvement comparison. Supporting lemmas omit those two fields.
+Inspect the returned verifier report and durable receipt. Only a returned fact_id
+identifies an accepted fact, and only improvement_status establishes an accepted
+bound. Worker repair or further discovery is appropriate for incomplete/rejected
+packages, with the existing proof and exact gaps supplied. Deliberate duplicate
+checks may still be useful, but record the reason and what they changed.
+
+Exploratory subagents must not spawn workers or recursively delegate. The main
+agent owns the operator-selected roster. Keep both existing research lanes
+active and coordinate their distinct responsibilities; do not reduce concurrency
+as a substitute for removing redundant proof handoffs. Producer names and
+reported discovery times are attribution metadata, not proof evidence.

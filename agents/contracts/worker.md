@@ -332,3 +332,14 @@ reassess the gain and resubmit only if still worthwhile. Rejected or unresolved
 attempts do not replace the best accepted result. Continue after an improvement;
 only stop at the configured deadline/round limit or operator direction. Budget
 exhaustion is not optimality. Preserve useful progress in shared memory.
+
+## Experimental direct-scout submissions
+
+On this branch, a complete scout proof can be relayed by the main agent directly
+to the independent verifier. Do not reconstruct a proof merely because it was
+written by a scout. Search accepted facts and improvement_status before working;
+reuse returned fact IDs. If assigned a rejected or incomplete package, read the
+saved package and verifier report, repair the named gaps, and preserve source
+attribution in source_id/global memory. Continue your assigned independent
+research. A direct-scout receipt without a fact_id is not an accepted fact, and
+an ordinary accepted supporting fact is not an accepted improvement.

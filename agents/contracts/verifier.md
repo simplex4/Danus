@@ -263,3 +263,12 @@ A correct proof does not imply a strict improvement. An unavailable or unproved
 comparison is unresolved. Use the supplied frozen predecessor facts when cited;
 no scout or main-agent authority is evidence. Do not infer optimality from an
 exhausted budget. This extra field is required only for improvement submissions.
+
+## Experimental scout packages
+
+When the prompt identifies a frozen candidate package (without an improvement
+comparison), verify its statement/proof under the same ordinary obligations and
+use the frozen predecessor proofs supplied in the input. Also return the top-level
+`candidate_sha256` exactly as specified in the prompt, binding your result to the
+package. Keep verification_report, verdict and repair_hints. Do not change the
+frozen input. Producer identity is attribution only, never correctness evidence.

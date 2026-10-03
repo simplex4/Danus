@@ -28,7 +28,21 @@ class BootstrapTests(unittest.TestCase):
         self.tool(self.host / "codex", 'printf "%s\\n" "$@"')
         # No test may download or install dependencies.
         self.tool(self.host / "curl", "exit 92")
+        # Keep system app installations out of these offline fixtures.
+        self.tool(self.host / "uname", '[ "$1" = -s ] && { echo Linux; exit 0; }; echo arm64')
         self.env = {"PATH": f"{self.host}:/usr/bin:/bin", "HOME": str(self.root)}
+
+    def desktop(self, body='printf "%s\\n" "$@"',
+                relative="Contents/Resources/codex-cli/bin/codex"):
+        self.tool(self.host / "uname", '[ "$1" = -s ] && { echo Darwin; exit 0; }; echo arm64')
+        detector = self.root / "scripts/detect-toolchain.sh"
+        # Redirect only the system application root; HOME already belongs to
+        # this fixture. Never run the real machine's bundled CLI in a test.
+        detector.write_text(detector.read_text().replace(
+            'set -- /Applications ', 'set -- "$HOME/system-applications" '))
+        cli = self.root / "Applications/ChatGPT.app" / relative
+        self.tool(cli, body)
+        return cli
 
     def tool(self, path, body):
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -68,6 +82,7 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(self.selected()[1], str(self.host / "codex"))
 
     def test_broken_host_tools_use_existing_local_installation(self):
+        self.desktop("exit 1")
         for name in ("node", "codex"):
             self.tool(self.host / name, "exit 1")
         node = self.root / "runtime/node22/bin/node"
@@ -79,6 +94,73 @@ class BootstrapTests(unittest.TestCase):
         self.bootstrap()
         self.assertEqual(self.selected(), [str(node), "", str(js)])
         self.assertEqual(self.run_shell('bin/codex exec "two words"'), f"{js}\nexec\ntwo words\n")
+
+    def test_desktop_cli_without_path_cli(self):
+        cli = self.desktop()
+        (self.host / "codex").unlink()
+        output = self.bootstrap()
+        self.assertEqual(self.selected()[1:], [str(cli), ""])
+        self.assertIn("Desktop updates may change its location", output)
+        self.assertFalse((self.root / "runtime/codex-npm").exists())
+        self.assertEqual(self.run_shell('bin/codex exec "two words"'), "exec\ntwo words\n")
+
+    def test_path_cli_precedes_desktop(self):
+        self.desktop()
+        output = self.bootstrap()
+        self.assertEqual(self.selected()[1], str(self.host / "codex"))
+        self.assertNotIn("Desktop updates may change its location", output)
+
+    def test_desktop_internal_layout_is_discovered(self):
+        (self.host / "codex").unlink()
+        for relative in ["Contents/Resources/codex",
+                         "Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+                         "Contents/Future Layout/tools/bin/codex"]:
+            with self.subTest(relative=relative):
+                cli = self.desktop(relative=relative)
+                self.assertIn("Desktop updates may change its location", self.bootstrap())
+                self.assertEqual(self.selected()[1], str(cli))
+                cli.unlink()
+
+    def test_desktop_search_skips_invalid_candidates(self):
+        bad = self.desktop("exit 1", relative="Contents/Resources/codex")
+        good = self.desktop(relative="Contents/Other Tools/codex")
+        nonexec = bad.parent / "disabled/codex"
+        self.tool(nonexec, "exit 0")
+        nonexec.chmod(0o644)
+        (bad.parent / "directory/codex").mkdir(parents=True)
+        (self.host / "codex").unlink()
+        self.bootstrap()
+        self.assertEqual(self.selected()[1], str(good))
+
+    def test_desktop_cli_on_path_still_warns(self):
+        cli = self.desktop()
+        (self.host / "codex").unlink()
+        self.env["PATH"] = f"{cli.parent}:{self.env['PATH']}"
+        self.assertIn("Desktop updates may change its location", self.bootstrap())
+        self.assertEqual(self.selected()[1], str(cli))
+
+    def test_system_bundle_precedes_user_bundle(self):
+        self.desktop()
+        cli = self.root / "system-applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex"
+        self.tool(cli, "exit 0")
+        (self.host / "codex").unlink()
+        self.bootstrap()
+        self.assertEqual(self.selected()[1], str(cli))
+
+    def test_desktop_wrapper_alias_is_skipped(self):
+        cli = self.desktop()
+        cli.unlink()
+        cli.symlink_to(self.root / "bin/codex")
+        self.assertEqual(self.run_shell(
+            'DANUS_ROOT="$PWD"; . scripts/detect-toolchain.sh; '
+            'danus_find_desktop_codex && exit 90; exit 0'), "")
+
+    def test_desktop_discovery_is_macos_only(self):
+        self.desktop()
+        self.tool(self.host / "uname", "echo Linux")
+        self.assertEqual(self.run_shell(
+            'DANUS_ROOT="$PWD"; . scripts/detect-toolchain.sh; '
+            'danus_find_desktop_codex && exit 90; exit 0'), "")
 
     def test_model_and_codex_home_are_preserved(self):
         self.tool(self.host / "codex", 'printf "%s\\n" "$CODEX_HOME" "$@"')

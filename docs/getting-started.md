@@ -33,8 +33,15 @@ detection, and prints the selected paths and versions:
   package must be on the venv's path; the script validates the venv actually
   imports everything and rebuilds if the base interpreter went dangling),
 - A working `codex` executable on `PATH` is reused (checked with `--version`).
-  Otherwise, the local CLI in `runtime/codex-npm` is reused or installed with
-  `npm @openai/codex`. This check does not validate API access.
+  If none is found, macOS bootstrap also checks the CLI bundled with Codex
+  Desktop. It searches recursively inside `ChatGPT.app/Contents`, first under
+  `/Applications`, then under `~/Applications`, and checks executable files
+  named `codex` with `--version`. The internal path is not assumed: both the
+  older `Contents/Resources/codex` layout and deeper locations are supported.
+  A separate Codex CLI installation is
+  therefore unnecessary when a working Desktop bundle is available. Otherwise,
+  the local CLI in `runtime/codex-npm` is reused or installed with
+  `npm @openai/codex`. These version checks do not validate API access.
 - human-summary node deps (`markdown-it`/`katex`, soft — only for PDF rendering),
 - `runtime/runtime.env` (machine paths that `scripts/env.sh` reads).
 
@@ -42,6 +49,11 @@ The selected executable paths are saved in `runtime/runtime.env`. Paths with
 spaces are supported. Reusing Codex does not change Danus's separate default
 `CODEX_HOME` (`runtime/codex-home`). Previously installed local tools are left in
 place; rerunning bootstrap selects host tools when available.
+
+When bootstrap selects the Desktop-bundled CLI, it prints a warning: **Codex
+Desktop updates may change the bundled CLI's location.** If the saved path stops
+working after an app update, rerun bootstrap to rediscover it or select another
+CLI. Node/npm and Python prerequisites still apply to a Desktop-only Codex setup.
 
 If `config/codex.env` already holds a real (non-placeholder) API key, bootstrap
 also writes the codex `model_provider` for you.

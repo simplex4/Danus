@@ -10,7 +10,7 @@
 #   1) Node + npm on PATH, otherwise Node 22 -> runtime/node22 (official tarball)
 #   2) Python venv + deps -> runtime/venv             (mcp/fastapi/uvicorn/pydantic/openai/anthropic
 #                                                      + the danus package itself, editable)
-#   3) codex CLI on PATH, otherwise -> runtime/codex-npm (npm @openai/codex)
+#   3) codex CLI on PATH or in macOS Desktop, otherwise -> runtime/codex-npm
 #   4) node skill deps    -> human-summary/node_modules (markdown-it/katex, soft)
 #   5) writes runtime/runtime.env (machine paths read by scripts/env.sh)
 #   6) if config/codex.env holds a real BYO key, writes the codex model_provider
@@ -107,6 +107,13 @@ fi
 # the dir is absent) — `|| true` keeps that from tripping `set -e`.
 CODEX_NPM="$RT/codex-npm"
 CODEX_BIN="$(danus_find_host_tool codex || true)"
+if [ -z "$CODEX_BIN" ]; then
+  CODEX_BIN="$(danus_find_desktop_codex || true)"
+fi
+case "$CODEX_BIN" in
+  */ChatGPT.app/Contents/*)
+    log "WARN: using the Codex CLI bundled with Codex Desktop. Desktop updates may change its location; rerun bootstrap if this path stops working." ;;
+esac
 CODEX_JS=""
 if [ -n "$CODEX_BIN" ]; then
   log "using existing codex: $CODEX_BIN ($("$CODEX_BIN" --version))"

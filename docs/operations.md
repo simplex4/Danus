@@ -87,8 +87,37 @@ provider), clears stale pidfiles, **replays the `runtime/run/autostart` manifest
 (brings the services back up), and prints codex + services health. Idempotent.
 
 > Note: after a restart, worker loops are **not** auto-resumed by `recover.sh` — it
-> restores the services. Restart workers with `danus start <project>` (they resume
-> from persisted memory).
+> restores the services. Before the main agent restarts workers with
+> `danus start <project>` (which resumes persisted worker memory), it must pass
+> the Goal check below.
+
+### Main-agent Goal check on start and resume
+
+Before research starts or resumes, the main agent calls `get_goal`. It may
+restart workers or scouts only after a fresh result reports `active` for the
+current project's authorized objective. This also applies after an interrupted
+turn or session; saying "continue" and restoring services are not evidence that
+the Goal is active.
+
+If no Goal exists, the agent creates one and checks again. A completed Goal may
+be replaced for newly authorized research. A paused Goal must instead be resumed
+through the mechanism supported by the current Codex client. The agent must
+verify that mechanism rather than guess a command: `update_goal` may not support
+activation, and creating a replacement Goal is not a resume operation. If an
+operator action is required, the agent explains it and waits for an `active`
+result before dispatching research.
+
+Unavailable Goal tools, status errors, other inactive states, and an objective
+for a different project all leave research stopped. Status inspection and
+checkpoint recovery may continue. If a later check finds research running with
+an inactive Goal, the agent reports the mismatch, stops the project's workers,
+interrupts its scouts, and preserves saved work before resolving the mismatch.
+It checks again at each control beat and records the observed state in
+pause/resume checkpoints.
+
+This is a main-agent operating rule, not a Goal-state check implemented in the
+`danus start` CLI. It detects a failed Codex Goal resume; it does not repair the
+client's Goal state or guarantee that Desktop will reactivate it automatically.
 
 ## Worker lifecycle (operational view)
 

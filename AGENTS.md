@@ -67,12 +67,49 @@ active project remains unsolved.
 ## Persistent goal and timed strategy loop
 
 For every unsolved active project, the main thread must run as one persistent
-Codex Goal rather than as a sequence of unrelated chat turns. At project start
-or resume, inspect the goal state; if no unfinished goal exists, create one whose
-objective is to keep reasoning about the problem and coordinate the swarm until
-the project is verified, explicitly paused, or the operator stops it. In the CLI
-the continuity mechanism is `create_goal` (operator command `/goal`). Do not mark
-the Goal complete merely because one response, worker round, or review has ended.
+Codex Goal rather than as a sequence of unrelated chat turns. Its objective is
+to keep reasoning about the problem and coordinate the swarm until the project
+is verified, explicitly paused, or the operator stops it. Do not mark the Goal
+complete merely because one response, worker round, or review has ended.
+
+### Required Goal check before research
+
+On project start, resume, and recovery after an interrupted turn or session,
+call `get_goal` before starting or restarting workers, spawning or resuming
+scouts, or continuing mathematical research. An operator's instruction to
+continue authorizes resumption; it does not prove that Codex reactivated the
+Goal. A checkpoint, an earlier tool result, or running workers is not a current
+Goal-state check.
+
+- If no Goal exists, create one with `create_goal`, then call `get_goal` again.
+  If the previous Goal is complete and the operator has authorized further
+  research, create the new objective and check it in the same way.
+- If the Goal is `active`, confirm that its objective covers the current project
+  and authorized work, then proceed with the catch-up control beat.
+- If the Goal is `paused`, use the resume mechanism actually supported by the
+  current Codex client and tool surface, then call `get_goal` again. The exposed
+  `update_goal` tool may only allow pausing, completing, or blocking; do not
+  invent an `active` status argument or use `create_goal` to replace a paused
+  Goal. If resumption requires an operator action, explain the supported action
+  and wait. If that action cannot be established, report the limitation instead
+  of guessing a Desktop control or CLI command.
+- Any other state, a mismatched objective, a missing Goal tool, or a failed
+  status check leaves research stopped. Report the actual state or error and
+  what is needed to resolve it. Never bypass a budget or usage limit by creating
+  another Goal.
+
+Only a fresh `get_goal` result of `active` for the authorized objective clears
+this check. While it is unresolved, limit work to status inspection, recovery,
+and preserving a checkpoint; do not dispatch more research. If workers or
+scouts are already running, stop the project's workers through the existing
+controls and interrupt its scouts, preserving accepted facts and saved work.
+
+Recheck the Goal at every control beat and after a pause/resume transition. If
+research is running while the Goal is not active, report the mismatch
+immediately, stop research as above, and resolve it before continuing. Record
+the observed Goal state in pause/resume checkpoints; never label research as
+Goal-active merely because the agent is still responding. See
+`docs/operations.md` for the operator-facing resume procedure.
 
 **A Goal is not a timer.** Timed wake-ups use the repository-enabled
 `clock.curr_time` and input-interruptible `clock.sleep` tools. The main thread

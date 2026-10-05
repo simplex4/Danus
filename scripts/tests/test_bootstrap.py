@@ -1,6 +1,7 @@
 """Offline integration checks: python3 -m unittest discover -s scripts/tests -v."""
 from pathlib import Path
 import shutil
+import shlex
 import subprocess
 import tempfile
 import unittest
@@ -23,6 +24,8 @@ class BootstrapTests(unittest.TestCase):
         self.host = Path(self.tmp.name) / "host tools"
         self.host.mkdir()
         self.tool(self.root / "runtime/venv/bin/python", "exit 0")
+        (self.root / "runtime/venv/bin/activate").write_text(
+            "VIRTUAL_ENV=" + shlex.quote(str(self.root / "runtime/venv")) + "\n")
         self.tool(self.host / "node", '[ "$1" = --version ] && echo v26.9.0; exit 0')
         self.tool(self.host / "npm", '[ "$1" = --version ] && { echo 11; exit 0; }; exit 91')
         self.tool(self.host / "codex", 'printf "%s\\n" "$@"')
